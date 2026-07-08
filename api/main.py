@@ -56,4 +56,75 @@ Required JSON fields:
 - severity: one of [low, medium, high, critical]
 - recommended_action: one of [disable_account, block_ip, kill_process, remove_scheduled_task, monitor_only]
 - target: the specific username, IP address, process name, or task name to act on
-- reasoning: one
+- reasoning: one sentence justification for the recommended action
+
+Alert details:
+Rule ID: {alert.rule_id}
+Description: {alert.rule_description}
+Agent: {alert.agent_name} ({alert.agent_ip})
+Log: {alert.full_log}
+Wazuh Severity Level: {alert.level}"""
+
+    async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
+        try:
+            response = await client.post(
+                f"{OLLAMA_HOST}/api/generate",
+                json={"model": LLM_MODEL, "prompt": prompt, "stream": False}
+            )
+            llm_data = response.json()
+            raw = llm_data.get("response", "{}")
+            clean = raw.strip().replace("```json", "").replace("```", "").strip()
+            triage = json.loads(clean)
+        except Exception as e:
+            triage = {
+                "summary": alert.rule_description,
+                "severity": "high" if alert.level >= 12 else "medium" if alert.level >= 8 else "low",
+                "recommended_action": "monitor_only",
+                "target": "unknown",
+                "reasoning": f"LLM triage unavailable ({str(e)}); classified by alert level."
+            }
+
+    remediation_result = None
+    verification_result = None
+
+    if (
+        triage.get("severity") in ["high", "critical"]
+        and triage.get("recommended_action") != "monitor_only"
+        and triage.get("target") != "unknown"
+    ):
+        remediation_result = execute_playbook(
+            action=triage["recommended_action"],
+            target=triage["target"]
+        )
+        verification_result = verify_remediation(
+            action=triage["recommended_action"],
+            target=triage["target"]
+        )
+
+    return {
+        "alert_received": alert.dict(),
+        "llm_triage": triage,
+        "remediation": remediation_result,
+        "verification": verification_result
+    }
+
+
+@app.post("/remediate")
+async def manual_remediate(req: RemediationRequest):
+    result = execute_playbook(req.action, req.target)
+    verification = verify_remediation(req.action, req.target)
+    return {"result": result, "verification": verification}
+
+
+@app.post("/rollback")
+async def rollback(req: RemediationRequest):
+    return rollback_action(req.action, req.target)
+
+
+@app.get("/audit")
+async def get_audit_log():
+    try:
+        with open("/app/logs/audit.log", "r") as f:
+            return {"log": f.read()}
+    except FileNotFoundError:
+        return {"log": "No audit entries yet."}
