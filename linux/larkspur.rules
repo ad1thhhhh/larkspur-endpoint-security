@@ -1,0 +1,24 @@
+# Larkspur Retail Group — auditd Rule Set
+# =========================================
+# Deploy to: /etc/audit/rules.d/larkspur.rules
+# Load with: sudo augenrules --load
+# Verify with: sudo auditctl -l
+
+# Privilege Escalation Monitoring (T1548.003)
+-w /etc/sudoers -p wa -k sudoers_change
+-a always,exit -F arch=b64 -S execve -F euid=0 -F auid>=1000 -k root_exec
+
+# Credential Access Monitoring (T1003)
+-w /var/log/auth.log -p wa -k auth_log
+-w /etc/passwd -p wa -k passwd_change
+-w /etc/shadow -p wa -k shadow_change
+
+# Persistence Monitoring (T1053)
+-w /etc/cron.d -p wa -k cron_change
+-w /etc/crontab -p wa -k crontab_change
+
+# Execution from Suspicious Locations (T1059)
+-a always,exit -F arch=b64 -S execve -F dir=/tmp -k tmp_exec
+
+# Lateral Movement Monitoring (T1021.004)
+-w /etc/ssh/sshd_config -p wa -k sshd_config_change
