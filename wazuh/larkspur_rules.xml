@@ -1,0 +1,78 @@
+<!--
+  Larkspur Retail Group — Custom Wazuh Detection Rules
+  =====================================================
+  Deploy to: /var/ossec/etc/rules/larkspur_rules.xml
+  Reload with: sudo systemctl restart wazuh-manager
+
+  Rule IDs 100001-100008 (reserved for local custom rules)
+  All rules mapped to MITRE ATT&CK techniques
+-->
+
+<group name="larkspur,">
+
+  <!-- Rule 100001: Shadow file accessed via sudo (T1548.003) -->
+  <rule id="100001" level="12">
+    <if_group>syslog</if_group>
+    <match>sudo</match>
+    <match>/etc/shadow</match>
+    <description>Larkspur: Shadow file accessed via sudo - credential access attempt</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+  </rule>
+
+  <!-- Rule 100002: Sudo bash privilege escalation (T1548.003) -->
+  <rule id="100002" level="12">
+    <if_group>syslog</if_group>
+    <match>sudo bash</match>
+    <description>Larkspur: Sudo bash execution - interactive root shell via sudo</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+  </rule>
+
+  <!-- Rule 100003: Shell script executed from /tmp (T1059) -->
+  <rule id="100003" level="10">
+    <if_group>syslog</if_group>
+    <match>/tmp/</match>
+    <description>Larkspur: Shell script executed from /tmp - suspicious execution location</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+  <!-- Rule 100004: SSH brute force (T1110) -->
+  <rule id="100004" level="12" frequency="5" timeframe="60">
+    <if_matched_sid>5710</if_matched_sid>
+    <same_source_ip />
+    <description>Larkspur: SSH brute force detected - 5+ failures from same IP in 60s</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+
+  <!-- Rule 100005: Cron persistence mechanism (T1053) -->
+  <rule id="100005" level="11">
+    <if_group>syslog</if_group>
+    <match>cron.d</match>
+    <description>Larkspur: Cron directory referenced - possible persistence mechanism</description>
+    <mitre>
+      <id>T1053</id>
+    </mitre>
+  </rule>
+
+  <!-- Rule 100006: New local user account created (T1136.001) -->
+  <rule id="100006" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4720$</field>
+    <description>Larkspur: New Windows user account created - possible backdoor account</description>
+    <mitre>
+      <id>T1136.001</id>
+    </mitre>
+  </rule>
+
+  <!-- Rule 100007: User added to Administrators group (T1136.001) -->
+  <rule id="100007" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4732$</field>
+    <description>Larkspur: User added to Administrators group - privilege escalation indicator</description>
