@@ -1,10 +1,5 @@
 # Larkspur Endpoint Security — Incident Response and Automated Remediation Lab
 
-**Module:** Communication and Network Security (B9CY110)
-**Programme:** MSc in Cybersecurity — Dublin Business School
-**Author:** Adith Ravi (20097165)
-
----
 
 ## Overview
 
