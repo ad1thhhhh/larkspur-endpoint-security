@@ -1,0 +1,41 @@
+version: "3.9"
+
+# Larkspur Retail Group — AI Security Remediation Stack
+# Deploys two services:
+#   larkspur-ollama : Ollama LLM server hosting llama3.2 for alert triage
+#   larkspur-api    : FastAPI remediation API with allowlisted playbooks
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: larkspur-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - larknet
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    container_name: larkspur-api
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - ALLOWED_ACTIONS=disable_account,kill_process,block_ip,remove_scheduled_task
+    volumes:
+      - ./api/logs:/app/logs
+    networks:
+      - larknet
+    depends_on:
+      - ollama
+    privileged: true
+    pid: host
+    restart: unless-stopped
+
+networks:
+  larknet:
+    driver: bridge
+
+volumes:
+  ollama_data:
